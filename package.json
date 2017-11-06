@@ -22,10 +22,14 @@
     "babel-preset-minify": "^0.2.0",
     "babel-register": "^6.26.0"
   },
-  "private": true,
+  "readme": "README.md",
   "keywords": [
     "retry",
     "retry-pattern",
     "limit"
-  ]
+  ],
+  "repository": {
+    "type" : "git", 
+    "url" : "https://github.com/alextanhongpin/node-retry"
+  }
 }
