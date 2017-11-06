@@ -41,3 +41,16 @@ app.get('/', (req, res) => {
 app.listen(4000, () => {
   console.log('listening to port *:4000. press ctrl + c to cancel.')
 })
+// // retry pattern
+// async function retry (p, { count, max }) {
+//   try {
+//     const r = await p()
+//     return r
+//   } catch (error) {
+//     if (count > max) {
+//       throw new Error('Max retry')
+//     }
+//     count += 1
+//     return retry(p, { count, max })
+//   }
+// }
