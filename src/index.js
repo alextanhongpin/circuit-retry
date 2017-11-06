@@ -35,4 +35,4 @@ function Retry ({ max = 3, logError = false, timeout = 'exponential', timeoutInt
   }
 }
 
-module.exports = Retry
+export default Retry
