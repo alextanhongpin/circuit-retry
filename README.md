@@ -1,6 +1,10 @@
-# node-retry
+# circuit-retry
 
-A simple retry pattern for nodejs with timeout.
+A simple retry pattern for nodejs with timeout. Available on [NPM](https://www.npmjs.com/package/circuit-retry).
+
+```bash
+$ npm install circuit-retry
+```
 
 ## Usage
 
