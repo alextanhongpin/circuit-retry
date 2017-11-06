@@ -8,15 +8,23 @@ $ npm install circuit-retry
 
 ## Usage
 
-```javascript
-const retry = Retry({ 
-  logError: true, 
+```javascript 
+const Retry = require('circuit-retry').default
+// or import * as Retry from 'circuit-retry'
+
+const retry = Retry({
+  logError: true,
   max: 10,
   timeout: 'constant', // linear | exponential | constant
-  timeoutInterval: 300 // ms 
+  timeoutInterval: 300 // ms
 })
 
-const res = await retry.do(asyncFunction, params)
+function doWork () {
+  return Math.random() < 0.5 ? Promise.reject(new Error('something happened')) : Promise.resolve(1)
+}
+
+retry.do(doWork, null).then(console.log)
+
 ```
 
 ## Example with Bluebird
