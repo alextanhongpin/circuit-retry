@@ -1,1 +1,41 @@
-(function(a,b){if('function'==typeof define&&define.amd)define(['module','exports'],b);else if('undefined'!=typeof exports)b(module,exports);else{var c={exports:{}};b(c,c.exports),a.index=c.exports}})(this,function(a,b){'use strict';Object.defineProperty(b,'__esModule',{value:!0});const c=new Error('max retry exceeded');b.default=function({max:a=3,logError:b=!1,timeout:d='exponential',timeoutInterval:e=300}){let f=0;const g={exponential:(a)=>(Math.pow(2,a)+1)*e,linear:(a)=>(a+1)*e,constant:()=>e},h=g[d]?g[d]:g.constant,i=(d,e)=>d(e).then((a)=>(f=0,a)).catch((g)=>(f+=1,b&&console.log(`tries=${f} retrying=${e} error=${g.message}`),f>a?Promise.reject(c):new Promise((a)=>{setTimeout(()=>{a(i(d,e))},h(f))})));return{do:i}},a.exports=b['default']});
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const errorMaxRetryExceeded = new Error('max retry exceeded');
+function Timeout(type, interval) {
+    const timeoutType = {
+        exponential: (i) => (Math.pow(2, i) + 1) * interval,
+        linear: (i) => (i + 1) * interval,
+        constant: () => interval
+    };
+    return timeoutType[type] ? timeoutType[type] : timeoutType['constant'];
+}
+function Retry({ max = 3, logError = false, timeout = 'exponential', timeoutInterval = 300 }) {
+    let tries = 0;
+    const timeoutType = Timeout(timeout, timeoutInterval);
+    const _do = (p, opts) => {
+        return p(opts)
+            .then((result) => {
+            tries = 0;
+            return result;
+        })
+            .catch((error) => {
+            tries += 1;
+            if (logError) {
+                console.log(`tries=${tries} retrying=${opts} error=${error.message}`);
+            }
+            if (tries > max) {
+                return Promise.reject(errorMaxRetryExceeded);
+            }
+            return new Promise((resolve, reject) => {
+                setTimeout(() => {
+                    resolve(_do(p, opts));
+                }, timeoutType(tries));
+            });
+        });
+    };
+    return {
+        do: _do
+    };
+}
+exports.default = Retry;
+//# sourceMappingURL=index.js.map
