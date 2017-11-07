@@ -1,6 +1,6 @@
 {
   "name": "circuit-retry",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "A utility to retry promises",
   "main": "dist/index.js",
   "scripts": {
@@ -10,8 +10,11 @@
   },
   "author": "alextanhongpin",
   "license": "MIT",
-  "dependencies": {},
+  "dependencies": {
+    "ms": "^2.0.0"
+  },
   "devDependencies": {
+    "@types/ms": "^0.7.30",
     "@types/node": "^8.0.48",
     "typescript": "^2.6.1"
   },

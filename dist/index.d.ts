@@ -1,8 +1,9 @@
 export interface RetryOptions {
-    max: number;
-    logError: boolean;
-    timeout: string;
-    timeoutInterval: number;
+    maxRetry?: number;
+    enableLogging?: boolean;
+    verbose?: boolean;
+    timeout?: string;
+    timeoutInterval?: string;
 }
 export interface TimeoutFunc {
     (i: number): number;
@@ -10,5 +11,5 @@ export interface TimeoutFunc {
 export interface TimeoutFactory {
     [index: string]: TimeoutFunc;
 }
-declare function Retry({max, logError, timeout, timeoutInterval}: RetryOptions): any;
-export default Retry;
+export declare function delay(duration: number): Promise<any>;
+export default function Retry(options: RetryOptions): any;

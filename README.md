@@ -13,10 +13,10 @@ const Retry = require('circuit-retry').default
 // or import * as Retry from 'circuit-retry'
 
 const retry = Retry({
-  logError: true,
-  max: 10,
+  enableLogging: true,
+  maxRetry: 10,
   timeout: 'constant', // linear | exponential | constant
-  timeoutInterval: 300 // ms
+  timeoutInterval: '300ms'
 })
 
 function doWork () {
@@ -24,7 +24,55 @@ function doWork () {
 }
 
 retry.do(doWork, null).then(console.log)
+```
 
+## Retry duration
+
+Timeout type can be either `linear`, `exponential` or `constant`. `.extrapolate()` method prints out the delay duration:
+
+```javascript
+console.log('exponential:', retry.extrapolate({
+  interval: '300ms',
+  times: 10,
+  type: 'exponential' // linear | exponential | constant
+}))
+```
+
+Output:
+
+```
+exponential: [ [ 1, '600ms' ],
+  [ 2, '900ms' ],
+  [ 3, '2s' ],
+  [ 4, '3s' ],
+  [ 5, '5s' ],
+  [ 6, '10s' ],
+  [ 7, '20s' ],
+  [ 8, '39s' ],
+  [ 9, '1m' ],
+  [ 10, '3m' ] ]
+
+constant: [ [ 1, '300ms' ],
+  [ 2, '300ms' ],
+  [ 3, '300ms' ],
+  [ 4, '300ms' ],
+  [ 5, '300ms' ],
+  [ 6, '300ms' ],
+  [ 7, '300ms' ],
+  [ 8, '300ms' ],
+  [ 9, '300ms' ],
+  [ 10, '300ms' ] ]
+
+linear: [ [ 1, '600ms' ],
+  [ 2, '1s' ],
+  [ 3, '2s' ],
+  [ 4, '2s' ],
+  [ 5, '3s' ],
+  [ 6, '4s' ],
+  [ 7, '4s' ],
+  [ 8, '5s' ],
+  [ 9, '5s' ],
+  [ 10, '6s' ] ]
 ```
 
 ## Example with Bluebird
@@ -32,7 +80,7 @@ retry.do(doWork, null).then(console.log)
 ```javascript
 
 const Promise = require('bluebird')
-const Retry = require('./retry')
+const Retry = require('retry').default
 
 function doWork (i) {
   return new Promise((resolve, reject) => {
@@ -41,7 +89,12 @@ function doWork (i) {
 }
 
 async function main () {
-  const retry = Retry({ logError: true, max: 10, timeout: 'constant', timeoutInterval: 300 })
+  const retry = Retry({ 
+    enableLogging: true,
+    maxRetry: 10,
+    timeout: 'constant', 
+    timeoutInterval: '300ms'
+  })
   try {
     // Retry 10 times
     const ok = await retry.do(doWork, 1)
