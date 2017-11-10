@@ -12,8 +12,7 @@ $ npm install circuit-retry
 const Retry = require('circuit-retry').default
 // or import * as Retry from 'circuit-retry'
 
-const retry = Retry({
-  enableLogging: true,
+const retry: Retry = Retry({
   maxRetry: 10,
   timeout: 'constant', // linear | exponential | constant
   timeoutInterval: '300ms'
@@ -23,6 +22,11 @@ function doWork () {
   return Math.random() < 0.5 ? Promise.reject(new Error('something happened')) : Promise.resolve(1)
 }
 
+const errorId = retry.on('error', (error: Error) => {
+  console.log('error:', error.message)
+})
+
+retry.off(errorId)
 retry.do(doWork, null).then(console.log)
 ```
 
@@ -80,29 +84,35 @@ linear: [ [ 1, '600ms' ],
 ```javascript
 
 const Promise = require('bluebird')
-const Retry = require('retry').default
+const Retry = require('circuit-retry').default
 
-function doWork (i) {
+function work (i) {
   return new Promise((resolve, reject) => {
     Math.random() > 0.5 ? reject(new Error('bad error')) : resolve(i)
   })
 }
 
 async function main () {
-  const retry = Retry({ 
-    enableLogging: true,
+  const retry = Retry({
     maxRetry: 10,
-    timeout: 'constant', 
+    timeout: 'constant',
     timeoutInterval: '300ms'
   })
   try {
-    // Retry 10 times
-    const ok = await retry.do(doWork, 1)
+    // Apply retry to a task
+    const ok = await retry.do(work, 1)
     console.log('success:', ok)
 
-    // Retry pipeline
+    // Apply retry to an array
     let counter = 0
-    const promises = Promise.all(Array(20).fill(0)).map((_, i) => {
+    let errorCounter = 0
+    retry.on('error', (error) => {
+      // We accumulate the total errors occuring
+      errorCounter += 1
+    })
+
+    const promises = Promise.all(Array(100).fill(0))
+    .map((_, i) => {
       // We are using the bluebird promise library.
       // The max concurrency is set to 5, which means that only 5 items in the array
       // will be processed at once - if there are errors, it will retry until the max
@@ -110,27 +120,36 @@ async function main () {
       counter += 1
       console.log('counter:', counter)
 
+
+      // If the error hits a certain threshold, stop the program
+      if (errorCounter > 5) {
+        console.log('exiting...', errorCounter, counter)
+        throw new Error('pipeline has exceeded error threshold')
+      }
+
       // Even after retrying for 10 items, there are still errors, catch them and return them
-      return retry.do(doWork, i).catch((error) => {
+      return retry.do(work, i).catch((error) => {
         return error
       })
     }, { concurrency: 5 })
 
-    const responses = await Promise.all(promises)
-    console.log('items processed:', responses.length)
+    try {
+      const responses = await Promise.all(promises)
+      console.log('items processed:', responses.length)
 
-    // Filter only errors responses
-    const errors = responses.filter((value) => value instanceof Error)
-    console.log('errors:', errors.length)
-    if (errors.length > 100) {
-      throw new Error('pipeline has exceeded error threshold')
+      // Filter only errors responses
+      const errors = responses.filter((value) => value instanceof Error)
+      console.log('errors:', errors.length)
+      // Do something with the errors
+
+      // Filter success responses to be processed by the next pipeline
+      const successes = responses.filter((value) => !(value instanceof Error))
+      console.log('successes:', successes.length, successes)
+    } catch (error) {
+      console.log('errors all:', error.message)
     }
-
-    // Filter success responses to be processed by the next pipeline
-    const successes = responses.filter((value) => !(value instanceof Error))
-    console.log('successes:', successes.length, successes)
   } catch (error) {
-    console.log('error:', error)
+    console.log('error:', error.message)
   }
   return true
 }

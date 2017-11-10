@@ -4,20 +4,24 @@ import ms = require('ms')
 
 export interface RetryOptions {
   maxRetry?: number;
-  enableLogging?: boolean;
-  verbose?: boolean;
   timeout?: string;
   timeoutInterval?: string;
 }
 
-export interface TimeoutFunc {
+interface TimeoutFunc {
   (i: number): number;
 }
 
-export interface TimeoutFactory {
+interface TimeoutFactory {
   [index: string]: TimeoutFunc;
 }
 
+interface EventError {
+  (error: Error): void;
+}
+interface RetryEvent {
+  [index: number]: EventError;
+}
 
 function Timeout (type: string, interval: number): TimeoutFunc {
   if (interval <= 0) {
@@ -41,40 +45,60 @@ export async function delay (duration: number): Promise<any> {
 }
 
 class CircuitRetry {
-  private counter: number;
-  private maxRetry: number;
-  private enableLogging: boolean;
-  private verbose: boolean;
+  private counter: number = 0;
+  private maxRetry: number = 3;
+  private events: RetryEvent;
   private timeout: TimeoutFunc;
 
-  constructor({ maxRetry = 3, enableLogging = false, timeout = 'exponential', timeoutInterval = '300ms', verbose = false }: RetryOptions) {
+  constructor({ maxRetry = 3, timeout = 'exponential', timeoutInterval = '300ms' }: RetryOptions) {
     this.counter = 0
     if (maxRetry < 0) {
       console.error('maxRetry must be greater than or equal 0. Defaults to 0.')
       maxRetry = 0
     }
     this.maxRetry = maxRetry
-    this.enableLogging = enableLogging
-    this.verbose = verbose
     this.timeout = Timeout(timeout, ms(timeoutInterval))
+    this.events = []
   }
 
-  private reset () {
+  private reset (): void {
     this.counter = 0
   }
 
-  private increment () {
+  private increment (): void {
     this.counter += 1
   }
 
-  private get thresholdExceeded () {
+  private get thresholdExceeded (): boolean {
     return this.counter > this.maxRetry
   }
 
   private get duration (): number {
     return this.timeout(this.counter)
   }
-
+  public on (namespace: string, fn: {(error: Error): void}): number {
+    if (namespace !== 'error') {
+      throw new Error('must be error')
+    }
+    const index = Date.now()
+    if (!this.events[index]) {
+      this.events[index] = fn
+    }
+    return index
+  }
+  public off (namespace: number): boolean {
+    delete this.events[namespace]
+    return true
+  }
+  public trigger (error: Error): void {
+    const keys = Object.keys(this.events)
+    if (!keys.length) {
+      return
+    }
+    keys.forEach((key) => {
+      this.events[parseInt(key, 10)](error)
+    })
+  } 
   private async retry (promise: any, opts: any): Promise<any> {
     try {
       const done = await promise(opts)
@@ -82,11 +106,7 @@ class CircuitRetry {
       return done
     } catch (error) {
       this.increment()
-      if (this.enableLogging && this.verbose) {
-        console.error(error)
-      } else if (this.enableLogging) {
-        console.log(`count=${this.counter} error=${error.message}`)
-      }
+      this.trigger(error)
       if (this.thresholdExceeded) {
         return errorMaxRetryExceeded
       }
@@ -95,7 +115,7 @@ class CircuitRetry {
     }
   }
 
-  do (promise: any, opts: any) {
+  do (promise: any, opts: any): Promise<any> {
     return this.retry(promise, opts)
   }
 
@@ -108,7 +128,7 @@ class CircuitRetry {
     return Array(times).fill(0).map((_, i) => [i + 1, ms(timeout(i))])
   }
 
-  get count() {
+  get count(): number {
     return this.counter
   }
 }

@@ -33,16 +33,17 @@ function delay(duration) {
 }
 exports.delay = delay;
 class CircuitRetry {
-    constructor({ maxRetry = 3, enableLogging = false, timeout = 'exponential', timeoutInterval = '300ms', verbose = false }) {
+    constructor({ maxRetry = 3, timeout = 'exponential', timeoutInterval = '300ms' }) {
+        this.counter = 0;
+        this.maxRetry = 3;
         this.counter = 0;
         if (maxRetry < 0) {
             console.error('maxRetry must be greater than or equal 0. Defaults to 0.');
             maxRetry = 0;
         }
         this.maxRetry = maxRetry;
-        this.enableLogging = enableLogging;
-        this.verbose = verbose;
         this.timeout = Timeout(timeout, ms(timeoutInterval));
+        this.events = [];
     }
     reset() {
         this.counter = 0;
@@ -56,6 +57,29 @@ class CircuitRetry {
     get duration() {
         return this.timeout(this.counter);
     }
+    on(namespace, fn) {
+        if (namespace !== 'error') {
+            throw new Error('must be error');
+        }
+        const index = Date.now();
+        if (!this.events[index]) {
+            this.events[index] = fn;
+        }
+        return index;
+    }
+    off(namespace) {
+        delete this.events[namespace];
+        return true;
+    }
+    trigger(error) {
+        const keys = Object.keys(this.events);
+        if (!keys.length) {
+            return;
+        }
+        keys.forEach((key) => {
+            this.events[parseInt(key, 10)](error);
+        });
+    }
     retry(promise, opts) {
         return __awaiter(this, void 0, void 0, function* () {
             try {
@@ -65,12 +89,7 @@ class CircuitRetry {
             }
             catch (error) {
                 this.increment();
-                if (this.enableLogging && this.verbose) {
-                    console.error(error);
-                }
-                else if (this.enableLogging) {
-                    console.log(`count=${this.counter} error=${error.message}`);
-                }
+                this.trigger(error);
                 if (this.thresholdExceeded) {
                     return errorMaxRetryExceeded;
                 }
